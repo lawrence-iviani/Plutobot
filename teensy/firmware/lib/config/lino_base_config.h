@@ -19,7 +19,7 @@
 // #define USE_MPU9150_IMU
 #define USE_MPU9250_IMU
 
-#define DEBUG 1
+#define DEBUG 0
 
 #define K_P 1.5 // P constant
 #define K_I 0.5 // I constant
@@ -162,15 +162,15 @@ ROBOT ORIENTATION
   #define MOTOR4_IN_A 4
   #define MOTOR4_IN_B 3 // Not use in case of ESC. Only for compatibility, PIN is reused for ENCODER!!
 
-  #define PWM_MAX 200   //Set lower PWM for better control (read as: avoid lost of control)
-  #define PWM_MIN -200  //-PWM_MAX
+  #define PWM_MAX 150   //Set lower PWM for better control (read as: avoid lost of control)
+  #define PWM_MIN -150  //-PWM_MAX
   #define PWM_POSITIVE_MIN_THRESHOLD 0//50 	  // The minimum threshold for pwm in brushless control, it maps the 0 to PWM_POSITIVE_MIN_THRESHOLD. An offset for the 0 to PWM MAX
   #define PWM_NEGATIVE_MIN_THRESHOLD 0//-45 	  // The minimum threshold for pwm in brushless control. it maps the 0 to PWM_NEGATIVE_MIN_THRESHOLD. An offset for the 0 to PWM MIN
   
   // NOT WORKING
-  // #define MAX_RAMP_PWM_PER_MS_POSITIVE_DELTA 0.02 //  Max velocity of INCREASE a PWM per msec, (NOTE:  BREAK SEEMS APPLIED BY THE ESC)
+  #define MAX_RAMP_PWM_PER_MS_POSITIVE_DELTA 0.06 //  Max velocity of INCREASE a PWM per msec, (NOTE:  BREAK SEEMS APPLIED BY THE ESC)
 												   //   0.04 seems the max velocity, but for consitency it is better to set equal in both cases
-  // #define MAX_RAMP_PWM_PER_MS_NEGATIVE_DELTA 0.02 // Max velocity of INCREASE a PWM per msec, (NOTE: NO BREAK APPLIED BY THE ESC??)
+  #define MAX_RAMP_PWM_PER_MS_NEGATIVE_DELTA 0.06 // Max velocity of INCREASE a PWM per msec, (NOTE: NO BREAK APPLIED BY THE ESC??)
 
 #endif
 

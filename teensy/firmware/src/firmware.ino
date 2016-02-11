@@ -29,7 +29,7 @@
 #define IMU_PUBLISH_RATE 5 //hz
 #define COMMAND_RATE 5 //hz Number of time per second the velocity command is parsed. Used to filter out too many command to the ESC
 #define DEBUG_RATE 3 // mess per second
-#define DEBUG_PID 
+//#define DEBUG_PID 
 
 #ifdef DEBUG_PID
 	float dbg_k_p = K_P;
@@ -162,6 +162,9 @@ void setup()
 	#else
 		nh.loginfo("LINOBASE UNKNOWN configuration"); //TODO: MECCANO
 	#endif
+	char msg[100];
+	sprintf (msg, "PID constants are : P=%2.6f, I=%2.6f, D=%2.6f", K_P, K_I, K_D);
+	nh.loginfo(msg);
 }
 
 void loop()
@@ -317,15 +320,27 @@ void moveBase()
 	applied_pwm_motor2 = mapESC_PWM(computed_pwm_2);
 #endif
 	last_spin_applied_motor_1 = motor1_controller.spin(applied_pwm_motor1);
-    last_spin_applied_motor_2 = motor2_controller.spin(applied_pwm_motor2);
-	if (last_spin_applied_motor_1==0 || last_spin_applied_motor_2 == 0) {
+	if (last_spin_applied_motor_1==0) {
 		motor1_controller.spin(0);
 	    motor2_controller.spin(0);
 		check_applied_pwm = 0;
+	} else {
+		last_spin_applied_motor_2 = motor2_controller.spin(applied_pwm_motor2);
+		if (last_spin_applied_motor_2 == 0) {
+			motor1_controller.spin(0);
+			motor2_controller.spin(0);
+			check_applied_pwm = 0;
+		}
 	}
 #if LINO_BASE==1 
-    last_spin_applied_motor_3 = motor3_controller.spin(motor3_pid.compute(requested_current_rpm3, current_rpm3));  
-    last_spin_applied_motor_4 = motor4_controller.spin(motor4_pid.compute(requested_current_rpm4, current_rpm4));    
+	if ( (last_spin_applied_motor_1==0) || (last_spin_applied_motor_2 == 0)  ) {
+		motor3_controller.spin(0);  
+		motor4_controller.spin(0);  
+	} else {
+		last_spin_applied_motor_3 = motor3_controller.spin(motor3_pid.compute(requested_current_rpm3, current_rpm3));  
+		last_spin_applied_motor_4 = motor4_controller.spin(motor4_pid.compute(requested_current_rpm4, current_rpm4));    
+	}
+    
 #endif
 
 
@@ -443,16 +458,16 @@ void printDebug()
 	// static float* read_timing2 = motor2_encoder.read_timing();
 	//// Timing Sensors
 	// sprintf (buffer, "Timing sensor 1    : avg=%.4f, U=%.4f, V=%.4f, W=%.4f", read_timing1[0], read_timing1[1], read_timing1[2], read_timing1[3]);
-	// nh.loginfo(buffer);
+	// nh.logdebug(buffer);
 	// sprintf (buffer, "Timing sensor 2    : avg=%.4f, U=%.4f, V=%.4f, W=%.4f", read_timing2[0], read_timing2[1], read_timing2[2], read_timing2[3]);
-    // nh.loginfo(buffer);
+    // nh.logdebug(buffer);
 // #endif	
 	
 	// Requested & Provided Speed
 	sprintf (buffer, "Required speed     : vel_x=%.2f, vel_y=%.2f, vel_z=%.2f", g_req_linear_vel_x, g_req_linear_vel_y, g_req_angular_vel_z);
-	nh.loginfo(buffer);
+	nh.logdebug(buffer);
 	sprintf (buffer, "Provided speed     : vel_x=%.2f, vel_y=%.2f, vel_z=%.2f", raw_vel_msg.linear_x , raw_vel_msg.linear_y , raw_vel_msg.angular_z);
-    nh.loginfo(buffer);
+    nh.logdebug(buffer);
 	
 	// PWM generated
 	if (check_applied_pwm==1) {
@@ -460,36 +475,36 @@ void printDebug()
 	} else {
 		sprintf (buffer, "Protect(not applied) PWM speed : PWM_FL(1)=0 instead of %d(%d), PWM_FR(2)=0 instead of  %d(%d) - spin_FL_applied(1)=%d spin_FR_applied(2)=%d", computed_pwm_1, applied_pwm_motor1, computed_pwm_2,applied_pwm_motor2, last_spin_applied_motor_1, last_spin_applied_motor_2);
 	}
-	nh.loginfo(buffer);
+	nh.logdebug(buffer);
 	
 	// ENCODER
     sprintf (buffer, "Encoder FrontLeft(1)  : %ld \t Delta Encoder(1):  %ld", read_motor1_encoder,  read_motor1_encoder - prev_read_motor1_encoder);
-    nh.loginfo(buffer);
+    nh.logdebug(buffer);
 	sprintf (buffer, "Encoder FrontRight(2) : %ld \t Delta Encoder(2):  %ld", read_motor2_encoder,  read_motor2_encoder - prev_read_motor2_encoder);
-    nh.loginfo(buffer);
+    nh.logdebug(buffer);
 	
 	// RPMs
 	sprintf (buffer, "Encoder FrontLeft(1)  : Requested RPM(1) %d \t Current RPM(1): %d \t  Delta RPM(1):  %d", requested_current_rpm1, current_rpm1, requested_current_rpm1 - current_rpm1);
-    nh.loginfo(buffer);
+    nh.logdebug(buffer);
 	sprintf (buffer, "Encoder FrontRight(2) : Requested RPM(2) %d \t Current RPM(2): %d \t  Delta RPM(2):  %d", requested_current_rpm2, current_rpm2, requested_current_rpm2 - current_rpm2);
-    nh.loginfo(buffer);
+    nh.logdebug(buffer);
 	
 	//IMU
 	sprintf (buffer, "IMU Readings Accel : a_x=%2.2f, a_y=%2.2f, a_z=%2.2f", accel.x, accel.y, accel.z);
-	nh.loginfo(buffer);
+	nh.logdebug(buffer);
 	sprintf (buffer, "IMU Readings Gyro  : g_x=%2.2f, g_y=%2.2f, g_z=%2.2f", gyro.x, gyro.y, gyro.z);
-    nh.loginfo(buffer);
+    nh.logdebug(buffer);
 	
 #ifdef DEBUG_PID
 	//PID
 	sprintf (buffer, "PID constant are : P=%2.6f, I=%2.6f, D=%2.6f", dbg_k_p, dbg_k_i, dbg_k_d);
-	nh.loginfo(buffer);
+	nh.logdebug(buffer);
 #endif	
 	
     //sprintf (buffer, "Encoder RearLeft   : %ld - RPM: %d - diff:  %ld", read_motor3_encoder, motor3_encoder.getRPM(), read_motor3_encoder - prev_read_motor3_encoder);
-    //nh.loginfo(buffer);
+    //nh.logdebug(buffer);
     //sprintf (buffer, "Encoder RearRight  : %ld - RPM: %d - diff:  %ld", read_motor4_encoder, motor4_encoder.getRPM(), read_motor4_encoder - prev_read_motor4_encoder);
-    //nh.loginfo(buffer);
+    //nh.logdebug(buffer);
 	
 	prev_read_motor1_encoder = read_motor1_encoder;
 	prev_read_motor2_encoder = read_motor2_encoder;
