@@ -30,7 +30,7 @@
 
 //define your robot' specs here
 #define MAX_RPM 200               // motor's maximum RPM
-#define COUNTS_PER_REV 5*6		  // wheel encoder's no of ticks per rev (e.g motors for one rotation should be 6, then multiplz for the number of the ration e.g 1:6 is 36 counts per rev???)
+#define COUNTS_PER_REV 5*6		  // wheel encoder's no of ticks per rev (e.g motors for one rotation should be 6, then multiplz for the number of the gear ratio e.g 1:5 is 30 counts per rev)
 #define WHEEL_DIAMETER 0.15       // wheel's diameter in meters
 #define PWM_BITS 8                // PWM Resolution of the microcontroller
 #define LR_WHEELS_DISTANCE 0.36  // distance between left and right wheels
@@ -64,7 +64,6 @@ ROBOT ORIENTATION
 
 /// ENCODER PINS
 #ifdef USE_ESC // Using an ESC requires normally 3 Pins
-#define MOTOR1_ENCODER_A 10
 #define MOTOR1_ENCODER_A 10
 #define MOTOR1_ENCODER_B 11 
 #define MOTOR1_ENCODER_C 6  
@@ -163,9 +162,14 @@ ROBOT ORIENTATION
   #define MOTOR4_IN_B 3 // Not use in case of ESC. Only for compatibility, PIN is reused for ENCODER!!
 
   #define PWM_MAX 100   //Set lower PWM for better control (read as: avoid lost of control)
-  #define PWM_MIN -120  //-PWM_MAX
-  #define PWM_POSITIVE_MIN_THRESHOLD 0 	  // The minimum threshold for pwm in brushless control. An offset for the 0 to PWM MAX
-  #define PWM_NEGATIVE_MIN_THRESHOLD -25 	  // The minimum threshold for pwm in brushless control. An offset for the 0 to PWM MAX
+  #define PWM_MIN -115  //-PWM_MAX
+  #define PWM_POSITIVE_MIN_THRESHOLD 45 	  // The minimum threshold for pwm in brushless control, it maps the 0 to PWM_POSITIVE_MIN_THRESHOLD. An offset for the 0 to PWM MAX
+  #define PWM_NEGATIVE_MIN_THRESHOLD -55 	  // The minimum threshold for pwm in brushless control. it maps the 0 to PWM_NEGATIVE_MIN_THRESHOLD. An offset for the 0 to PWM MIN
+  
+  // NOT WORKING
+  // #define MAX_RAMP_PWM_PER_MS_POSITIVE_DELTA 0.02 //  Max velocity of INCREASE a PWM per msec, (NOTE:  BREAK SEEMS APPLIED BY THE ESC)
+												   //   0.04 seems the max velocity, but for consitency it is better to set equal in both cases
+  // #define MAX_RAMP_PWM_PER_MS_NEGATIVE_DELTA 0.02 // Max velocity of INCREASE a PWM per msec, (NOTE: NO BREAK APPLIED BY THE ESC??)
 
 #endif
 

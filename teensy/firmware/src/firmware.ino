@@ -312,6 +312,14 @@ void moveBase()
     last_spin_applied_motor_4 = motor4_controller.spin(motor4_pid.compute(requested_current_rpm4, current_rpm4));    
 #endif
 
+
+	// Calculate speed, update RPM
+	current_rpm1 = -motor1_encoder.getRPM();	// The motor is rotating inverted
+	current_rpm2 = motor2_encoder.getRPM(); 
+#if LINO_BASE==1
+	current_rpm3 = motor3_encoder.getRPM();
+    current_rpm4 = motor4_encoder.getRPM();
+#endif
 	
 	Kinematics::velocities current_vel;
 	
@@ -424,8 +432,10 @@ void printDebug()
     // nh.loginfo(buffer);
 // #endif	
 	
-	// Requested Speed
+	// Requested & Provided Speed
 	sprintf (buffer, "Required speed     : vel_x=%.2f, vel_y=%.2f, vel_z=%.2f", g_req_linear_vel_x, g_req_linear_vel_y, g_req_angular_vel_z);
+	nh.loginfo(buffer);
+	sprintf (buffer, "Provided speed     : vel_x=%.2f, vel_y=%.2f, vel_z=%.2f", raw_vel_msg.linear_x , raw_vel_msg.linear_y , raw_vel_msg.angular_z);
     nh.loginfo(buffer);
 	
 	// PWM generated

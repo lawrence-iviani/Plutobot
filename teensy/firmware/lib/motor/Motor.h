@@ -9,10 +9,12 @@
                              // The PWM has set to 0 and wait before apply the new PWM, accordingly to this max steep ramp
 #define MAX_RAMP_PWM_PER_MS_POSITIVE_DELTA 0.02 //  Max velocity of INCREASE a PWM per msec, (NOTE:  BREAK SEEMS APPLIED BY THE ESC)
                                                 //0.04 seems the max velocity, but for consitency it is better to set equal in both cases
+#warning MAX_RAMP_PWM_PER_MS_NEGATIVE_DELTA not defined, using default
 #endif
 
 #ifndef MAX_RAMP_PWM_PER_MS_NEGATIVE_DELTA // Max steep for a ramp when a zero crossing happen. The ramp is negative (from a positive PWM to a negative PWM)
 #define MAX_RAMP_PWM_PER_MS_NEGATIVE_DELTA 0.02 // Max velocity of INCREASE a PWM per msec, (NOTE: NO BREAK APPLIED BY THE ESC??)
+#warning MAX_RAMP_PWM_PER_MS_NEGATIVE_DELTA not defined, using default
 #endif
 
 //#define BLDC_MTR_DEBUG 1 // it deosnt work if set in the main. mah
