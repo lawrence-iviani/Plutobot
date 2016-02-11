@@ -27,8 +27,15 @@
 
 
 #define IMU_PUBLISH_RATE 5 //hz
-#define COMMAND_RATE 3 //hz Number of time per second the velocity command is parsed. Used to filter out too many command to the ESC
+#define COMMAND_RATE 5 //hz Number of time per second the velocity command is parsed. Used to filter out too many command to the ESC
 #define DEBUG_RATE 3 // mess per second
+#define DEBUG_PID 
+
+#ifdef DEBUG_PID
+	float dbg_k_p = K_P;
+	float dbg_k_i = K_I;
+	float dbg_k_d = K_D;
+#endif
 
 #ifdef USE_ESC // Assuming using ESC uses needs to extract the RPM in the 
 #include "Encoder_BLDC.h"
@@ -212,6 +219,12 @@ void loop()
 
 void PIDCallback(const lino_msgs::PID& pid)
 {
+#ifdef DEBUG_PID
+	dbg_k_p = pid.p;
+	dbg_k_i = pid.i;
+	dbg_k_d = pid.d;
+#endif
+	
     //callback function every time PID constants are received from lino_pid for tuning
     //this callback receives pid object where P,I, and D constants are stored
     motor1_pid.updateConstants(pid.p, pid.i, pid.d);
@@ -246,6 +259,7 @@ int applied_pwm_motor1;
 int applied_pwm_motor2;
 int last_spin_applied_motor_1; 
 int last_spin_applied_motor_2; 
+int check_applied_pwm = 0; // set to 1 if pwm was applied, otherwise set 0
 
 // as defined in Kinematics.h --->>> {DIFFERENTIAL_DRIVE, SKID_STEER, ACKERMANN, ACKERMANN1, MECANUM};
 #if LINO_BASE==1
@@ -263,6 +277,7 @@ int last_spin_applied_motor_4;
 
 void moveBase()
 {
+	check_applied_pwm = 1;
 	last_spin_applied_motor_1 = 1; 
 	last_spin_applied_motor_2 = 1; 
 #if LINO_BASE==1
@@ -306,6 +321,7 @@ void moveBase()
 	if (last_spin_applied_motor_1==0 || last_spin_applied_motor_2 == 0) {
 		motor1_controller.spin(0);
 	    motor2_controller.spin(0);
+		check_applied_pwm = 0;
 	}
 #if LINO_BASE==1 
     last_spin_applied_motor_3 = motor3_controller.spin(motor3_pid.compute(requested_current_rpm3, current_rpm3));  
@@ -439,8 +455,12 @@ void printDebug()
     nh.loginfo(buffer);
 	
 	// PWM generated
-	sprintf (buffer, "Calucated(applied) PWM speed : PWM_FL(1)=%d(%d), PWM_FR(2)=%d(%d) - spin_FL_applied(1)=%d spin_FR_applied(2)=%d", computed_pwm_1, applied_pwm_motor1, computed_pwm_2,applied_pwm_motor2, last_spin_applied_motor_1, last_spin_applied_motor_2);
-    nh.loginfo(buffer);
+	if (check_applied_pwm==1) {
+		sprintf (buffer, "Calucated(applied) PWM speed : PWM_FL(1)=%d(%d), PWM_FR(2)=%d(%d) - spin_FL_applied(1)=%d spin_FR_applied(2)=%d", computed_pwm_1, applied_pwm_motor1, computed_pwm_2,applied_pwm_motor2, last_spin_applied_motor_1, last_spin_applied_motor_2);
+	} else {
+		sprintf (buffer, "Protect(not applied) PWM speed : PWM_FL(1)=0 instead of %d(%d), PWM_FR(2)=0 instead of  %d(%d) - spin_FL_applied(1)=%d spin_FR_applied(2)=%d", computed_pwm_1, applied_pwm_motor1, computed_pwm_2,applied_pwm_motor2, last_spin_applied_motor_1, last_spin_applied_motor_2);
+	}
+	nh.loginfo(buffer);
 	
 	// ENCODER
     sprintf (buffer, "Encoder FrontLeft(1)  : %ld \t Delta Encoder(1):  %ld", read_motor1_encoder,  read_motor1_encoder - prev_read_motor1_encoder);
@@ -459,6 +479,12 @@ void printDebug()
 	nh.loginfo(buffer);
 	sprintf (buffer, "IMU Readings Gyro  : g_x=%2.2f, g_y=%2.2f, g_z=%2.2f", gyro.x, gyro.y, gyro.z);
     nh.loginfo(buffer);
+	
+#ifdef DEBUG_PID
+	//PID
+	sprintf (buffer, "PID constant are : P=%2.6f, I=%2.6f, D=%2.6f", dbg_k_p, dbg_k_i, dbg_k_d);
+	nh.loginfo(buffer);
+#endif	
 	
     //sprintf (buffer, "Encoder RearLeft   : %ld - RPM: %d - diff:  %ld", read_motor3_encoder, motor3_encoder.getRPM(), read_motor3_encoder - prev_read_motor3_encoder);
     //nh.loginfo(buffer);

@@ -108,6 +108,7 @@ sprintf(this->debug_interrupt_msg_ , "ESC: received PWM_0 %d with with ZC prev_p
 #if BLDC_MTR_DEBUG==1
 sprintf(this->debug_interrupt_msg_ , "ESC(%d): received PWM_0 possible pwm is %d with with ZC prev_pwm=%d,  ZERO REACHED, REMOVE RAMP  PWM_0", deltaMillis, possiblePWM, this->prev_pwm_ );
 #endif 
+					 spin_possible = 1; // Setting flag spin to possible
                      this->next_pwm_ = 0;// this is also used to detect when a ramp starts
                      this->prev_pwm_ = 0;
                      this->rampStartMillis = 0;
