@@ -27,8 +27,8 @@
 
 
 #define IMU_PUBLISH_RATE 5 //hz
-#define COMMAND_RATE 8 //hz Number of time per second the velocity command is parsed. Used to filter out too many command to the ESC
-#define DEBUG_RATE 5 // mess per second
+#define COMMAND_RATE 3 //hz Number of time per second the velocity command is parsed. Used to filter out too many command to the ESC
+#define DEBUG_RATE 3 // mess per second
 
 #ifdef USE_ESC // Assuming using ESC uses needs to extract the RPM in the 
 #include "Encoder_BLDC.h"
@@ -244,6 +244,9 @@ int computed_pwm_1;
 int computed_pwm_2;
 int applied_pwm_motor1;
 int applied_pwm_motor2;
+int last_spin_applied_motor_1; 
+int last_spin_applied_motor_2; 
+
 // as defined in Kinematics.h --->>> {DIFFERENTIAL_DRIVE, SKID_STEER, ACKERMANN, ACKERMANN1, MECANUM};
 #if LINO_BASE==1
 int current_rpm3;
@@ -254,23 +257,34 @@ int computed_pwm_3;
 int computed_pwm_4;
 int applied_pwm_motor3;
 int applied_pwm_motor4;
+int last_spin_applied_motor_3; 
+int last_spin_applied_motor_4; 
 #endif
 
-int wait_delay;
 void moveBase()
 {
-	static int delay_btw_spin_motor_1 = 0; 
-	static int delay_btw_spin_motor_2 = 0; 
-	static int delay_btw_spin_motor_3 = 0; 
-	static int delay_btw_spin_motor_4 = 0; 
-	wait_delay = 0;
+	last_spin_applied_motor_1 = 1; 
+	last_spin_applied_motor_2 = 1; 
+#if LINO_BASE==1
+	last_spin_applied_motor_3 = 1; 
+	last_spin_applied_motor_4 = 1; 
+#endif
     //get the required rpm for each motor based on required velocities, and base used
     Kinematics::rpm req_rpm = kinematics.getRPM(g_req_linear_vel_x, g_req_linear_vel_y, g_req_angular_vel_z);
 
+/*
+	ROBOT ORIENTATION
+         FRONT
+    MOTOR1  MOTOR2  (2WD/ACKERMANN)
+    MOTOR3  MOTOR4  (4WD/MECANUM)  
+         BACK
+*/
+
     //get the current speed of each motor and the requested. These are saved in a variable for debugging purposes
 	// One motor is mounted inverted, motor 2 in this case	
-	current_rpm1 = motor1_encoder.getRPM();	
-	current_rpm2 = -motor2_encoder.getRPM(); // The motor is rotating inverted
+	current_rpm1 = -motor1_encoder.getRPM();	// The motor is rotating inverted
+	current_rpm2 = motor2_encoder.getRPM(); 
+	
 	requested_current_rpm1 = req_rpm.motor1;
 	requested_current_rpm2 = req_rpm.motor2;
 #if LINO_BASE==1
@@ -281,33 +295,23 @@ void moveBase()
 #endif
     //the required rpm is capped at -/+ MAX_RPM to prevent the PID from having too much error
     //the PWM value sent to the motor driver is the calculated PID based on required RPM vs measured RPM
-	computed_pwm_1 = motor1_pid.compute(requested_current_rpm1, current_rpm1);
-	computed_pwm_2 = motor2_pid.compute(-requested_current_rpm2, -current_rpm2); // The motor 2 must rotate inverted
+	computed_pwm_1 = motor1_pid.compute(-requested_current_rpm1, -current_rpm1); // The motor 1 must rotate inverted
+	computed_pwm_2 = motor2_pid.compute(requested_current_rpm2, current_rpm2); 
 #ifdef USE_ESC
 	applied_pwm_motor1 = mapESC_PWM(computed_pwm_1); // needed to map an eventual min PWM 
 	applied_pwm_motor2 = mapESC_PWM(computed_pwm_2);
 #endif
-	delay_btw_spin_motor_1 = motor1_controller.spin(applied_pwm_motor1);
-    delay_btw_spin_motor_2 = motor2_controller.spin(applied_pwm_motor2);
-#if LINO_BASE==1 // CODE NOT MODIFIED SEE LINES ABOVE WITH applied_pwm_motor1
-    delay_btw_spin_motor_3 = motor3_controller.spin(motor3_pid.compute(requested_current_rpm3, current_rpm3));  
-    delay_btw_spin_motor_4 = motor4_controller.spin(motor4_pid.compute(requested_current_rpm4, current_rpm4));    
-#endif
-	// if some of the spin has to go to 0 wait until it has finished. Should all the spin set to 0 and then set again
-	wait_delay = max(delay_btw_spin_motor_1, max(delay_btw_spin_motor_2, max(delay_btw_spin_motor_3, delay_btw_spin_motor_4)));
-	if (wait_delay) {
+	last_spin_applied_motor_1 = motor1_controller.spin(applied_pwm_motor1);
+    last_spin_applied_motor_2 = motor2_controller.spin(applied_pwm_motor2);
+	if (last_spin_applied_motor_1==0 || last_spin_applied_motor_2 == 0) {
 		motor1_controller.spin(0);
-		motor2_controller.spin(0);
-		delay(wait_delay);
-		motor1_controller.spin(applied_pwm_motor1);
-		motor2_controller.spin(applied_pwm_motor2);
+	    motor2_controller.spin(0);
 	}
-	
-#if LINO_BASE==1
-	// CODE NOT MODIFIED SEE LINES ABOVE WITH wait_delay
-    motor3_controller.spin(motor3_pid.compute(requested_current_rpm3, current_rpm3));  
-    motor4_controller.spin(motor4_pid.compute(requested_current_rpm4, current_rpm4));    
-#endif    
+#if LINO_BASE==1 
+    last_spin_applied_motor_3 = motor3_controller.spin(motor3_pid.compute(requested_current_rpm3, current_rpm3));  
+    last_spin_applied_motor_4 = motor4_controller.spin(motor4_pid.compute(requested_current_rpm4, current_rpm4));    
+#endif
+
 	
 	Kinematics::velocities current_vel;
 	
@@ -381,8 +385,10 @@ float mapFloat(float x, float in_min, float in_max, float out_min, float out_max
 #ifdef USE_ESC 
 int mapESC_PWM(int pwm) {
 	int ret_pwm = pwm;
-	if (pwm > 0) 	  { ret_pwm = map(pwm, 0       , PWM_MAX , PWM_MIN_THRESHOLD, PWM_MAX           );}
-	else if (pwm < 0) { ret_pwm = map(pwm, PWM_MIN , 0       , PWM_MIN          , -PWM_MIN_THRESHOLD); }	
+	//if (pwm > 0) 	  { ret_pwm = map(pwm, 0       , PWM_MAX , PWM_MIN_THRESHOLD, PWM_MAX           );}
+	//else if (pwm < 0) { ret_pwm = map(pwm, PWM_MIN , 0       , PWM_MIN          , -PWM_MIN_THRESHOLD); }	
+	if (pwm > 0) 	  { ret_pwm = map(pwm, 0       , PWM_MAX , PWM_POSITIVE_MIN_THRESHOLD, PWM_MAX           );}
+	else if (pwm < 0) { ret_pwm = map(pwm, PWM_MIN , 0       , PWM_MIN                   , PWM_NEGATIVE_MIN_THRESHOLD); }	
 	return ret_pwm;
 }
 #endif
@@ -423,19 +429,19 @@ void printDebug()
     nh.loginfo(buffer);
 	
 	// PWM generated
-	sprintf (buffer, "Calucated(applied) PWM speed : PWM_FL=%d(%d), PWM_FR=%d(%d) - waitdelay %d ms", computed_pwm_1, applied_pwm_motor1, computed_pwm_2,applied_pwm_motor2, wait_delay);
+	sprintf (buffer, "Calucated(applied) PWM speed : PWM_FL(1)=%d(%d), PWM_FR(2)=%d(%d) - spin_FL_applied(1)=%d spin_FR_applied(2)=%d", computed_pwm_1, applied_pwm_motor1, computed_pwm_2,applied_pwm_motor2, last_spin_applied_motor_1, last_spin_applied_motor_2);
     nh.loginfo(buffer);
 	
 	// ENCODER
-    sprintf (buffer, "Encoder FrontLeft  : %ld \t diff:  %ld", read_motor1_encoder,  read_motor1_encoder - prev_read_motor1_encoder);
+    sprintf (buffer, "Encoder FrontLeft(1)  : %ld \t Delta Encoder(1):  %ld", read_motor1_encoder,  read_motor1_encoder - prev_read_motor1_encoder);
     nh.loginfo(buffer);
-	sprintf (buffer, "Encoder FrontRight : %ld \t diff:  %ld", read_motor2_encoder,  read_motor2_encoder - prev_read_motor2_encoder);
+	sprintf (buffer, "Encoder FrontRight(2) : %ld \t Delta Encoder(2):  %ld", read_motor2_encoder,  read_motor2_encoder - prev_read_motor2_encoder);
     nh.loginfo(buffer);
 	
 	// RPMs
-	sprintf (buffer, "Encoder FrontLeft  : Requested RPM %d \t Read RPM: %d \t  diff RPM:  %d", requested_current_rpm1, current_rpm1, requested_current_rpm1 - current_rpm1);
+	sprintf (buffer, "Encoder FrontLeft(1)  : Requested RPM(1) %d \t Current RPM(1): %d \t  Delta RPM(1):  %d", requested_current_rpm1, current_rpm1, requested_current_rpm1 - current_rpm1);
     nh.loginfo(buffer);
-	sprintf (buffer, "Encoder FrontRight : Requested RPM %d \t Read RPM: %d \t  diff RPM:  %d", requested_current_rpm2, current_rpm2, requested_current_rpm2 - current_rpm2);
+	sprintf (buffer, "Encoder FrontRight(2) : Requested RPM(2) %d \t Current RPM(2): %d \t  Delta RPM(2):  %d", requested_current_rpm2, current_rpm2, requested_current_rpm2 - current_rpm2);
     nh.loginfo(buffer);
 	
 	//IMU
