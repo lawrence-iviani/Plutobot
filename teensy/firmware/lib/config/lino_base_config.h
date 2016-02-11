@@ -30,7 +30,7 @@
 
 //define your robot' specs here
 //#define MAX_RPM 800               // Be careful here! this value is for running on a test bench a motor's maximum RPM
-#define MAX_RPM 800            // motor's maximum RPM, this is for usage on the road
+#define MAX_RPM 400            // motor's maximum RPM, this is for usage on the road
 #define COUNTS_PER_REV 5*6		  // wheel encoder's no of ticks per rev (e.g motors for one rotation should be 6, then multiplz for the number of the gear ratio e.g 1:5 is 30 counts per rev)
 #define WHEEL_DIAMETER 0.15       // wheel's diameter in meters
 #define PWM_BITS 8                // PWM Resolution of the microcontroller
@@ -65,13 +65,24 @@ ROBOT ORIENTATION
 
 /// ENCODER PINS
 #ifdef USE_ESC // Using an ESC requires normally 3 Pins
-#define MOTOR1_ENCODER_A 10
-#define MOTOR1_ENCODER_B 11 
-#define MOTOR1_ENCODER_C 6  
 
-#define MOTOR2_ENCODER_A 15
-#define MOTOR2_ENCODER_B 14 
-#define MOTOR2_ENCODER_C 20 
+// PREVIOUS LAYOUT
+// #define MOTOR1_ENCODER_A 10
+// #define MOTOR1_ENCODER_B 11 
+// #define MOTOR1_ENCODER_C 6  
+
+// #define MOTOR2_ENCODER_A 15
+// #define MOTOR2_ENCODER_B 14 
+// #define MOTOR2_ENCODER_C 20 
+
+
+#define MOTOR2_ENCODER_A 10
+#define MOTOR2_ENCODER_B 11 
+#define MOTOR2_ENCODER_C 6  
+
+#define MOTOR1_ENCODER_A 15
+#define MOTOR1_ENCODER_B 14 
+#define MOTOR1_ENCODER_C 20 
 
 #define MOTOR3_ENCODER_A 17
 #define MOTOR3_ENCODER_B 16 
@@ -146,13 +157,21 @@ ROBOT ORIENTATION
 #ifdef USE_ESC
   #define MOTOR_DRIVER ESC  
   
+  // #define MOTOR1_PWM 1 //DON'T TOUCH THIS! This is just a placeholder
+  // #define MOTOR1_IN_A 5
+  // #define MOTOR1_IN_B 6 // Not use in case of ESC. Only for compatibility, PIN is reused for ENCODER!!
+
+  // #define MOTOR2_PWM 8 //DON'T TOUCH THIS! This is just a placeholder
+  // #define MOTOR2_IN_A 21
+  // #define MOTOR2_IN_B 20 // Not use in case of ESC. Only for compatibility, PIN is reused for ENCODER!!
+  
   #define MOTOR1_PWM 1 //DON'T TOUCH THIS! This is just a placeholder
-  #define MOTOR1_IN_A 5
-  #define MOTOR1_IN_B 6 // Not use in case of ESC. Only for compatibility, PIN is reused for ENCODER!!
+  #define MOTOR1_IN_A 21
+  #define MOTOR1_IN_B 20 // Not use in case of ESC. Only for compatibility, PIN is reused for ENCODER!!
 
   #define MOTOR2_PWM 8 //DON'T TOUCH THIS! This is just a placeholder
-  #define MOTOR2_IN_A 21
-  #define MOTOR2_IN_B 20 // Not use in case of ESC. Only for compatibility, PIN is reused for ENCODER!!
+  #define MOTOR2_IN_A 5
+  #define MOTOR2_IN_B 6 // Not use in case of ESC. Only for compatibility, PIN is reused for ENCODER!!
 
   #define MOTOR3_PWM 0 //DON'T TOUCH THIS! This is just a placeholder
   #define MOTOR3_IN_A 22
@@ -162,10 +181,10 @@ ROBOT ORIENTATION
   #define MOTOR4_IN_A 4
   #define MOTOR4_IN_B 3 // Not use in case of ESC. Only for compatibility, PIN is reused for ENCODER!!
 
-  #define PWM_MAX 200   //Set lower PWM for better control (read as: avoid lost of control)
-  #define PWM_MIN -200  //-PWM_MAX
+  #define PWM_MAX 300   //Set lower PWM for better control (read as: avoid lost of control)
+  #define PWM_MIN -450  //-PWM_MAX
   #define PWM_POSITIVE_MIN_THRESHOLD 30 	  // The minimum threshold for pwm in brushless control, it maps the 0 to PWM_POSITIVE_MIN_THRESHOLD. An offset for the 0 to PWM MAX
-  #define PWM_NEGATIVE_MIN_THRESHOLD -40   	  // The minimum threshold for pwm in brushless control. it maps the 0 to PWM_NEGATIVE_MIN_THRESHOLD. An offset for the 0 to PWM MIN
+  #define PWM_NEGATIVE_MIN_THRESHOLD -150   	  // The minimum threshold for pwm in brushless control. it maps the 0 to PWM_NEGATIVE_MIN_THRESHOLD. An offset for the 0 to PWM MIN
   
   // NOT WORKING
   #define MAX_RAMP_PWM_PER_MS_POSITIVE_DELTA 0.06 //  Max velocity of INCREASE a PWM per msec, (NOTE:  BREAK SEEMS APPLIED BY THE ESC)

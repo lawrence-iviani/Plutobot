@@ -298,9 +298,8 @@ void moveBase()
          BACK
 */
 
-    //get the current speed of each motor and the requested. These are saved in a variable for debugging purposes
-	// One motor is mounted inverted, motor 2 in this case	
-	current_rpm1 = -motor1_encoder.getRPM();	// The motor is rotating inverted
+    //get the current speed of each motor and the requested. These are saved in a variable for debugging purposes	
+	current_rpm1 = motor1_encoder.getRPM();	
 	current_rpm2 = motor2_encoder.getRPM(); 
 	
 	requested_current_rpm1 = req_rpm.motor1;
@@ -313,7 +312,7 @@ void moveBase()
 #endif
     //the required rpm is capped at -/+ MAX_RPM to prevent the PID from having too much error
     //the PWM value sent to the motor driver is the calculated PID based on required RPM vs measured RPM
-	computed_pwm_1 = motor1_pid.compute(-requested_current_rpm1, -current_rpm1); // The motor 1 must rotate inverted
+	computed_pwm_1 = motor1_pid.compute(requested_current_rpm1, current_rpm1); // The motor 1 must rotate inverted
 	computed_pwm_2 = motor2_pid.compute(requested_current_rpm2, current_rpm2); 
 #ifdef USE_ESC
 	applied_pwm_motor1 = mapESC_PWM(computed_pwm_1); // needed to map an eventual min PWM 
@@ -346,7 +345,7 @@ void moveBase()
 
 
 	// Calculate speed, update RPM with the new SPIN
-	current_rpm1 = -motor1_encoder.getRPM();	// The motor is rotating inverted
+	current_rpm1 = motor1_encoder.getRPM();	
 	current_rpm2 = motor2_encoder.getRPM(); 
 #if LINO_BASE==1
 	current_rpm3 = motor3_encoder.getRPM();
