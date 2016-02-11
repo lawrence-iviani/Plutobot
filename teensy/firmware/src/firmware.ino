@@ -29,7 +29,7 @@
 #define IMU_PUBLISH_RATE 5 //hz
 #define COMMAND_RATE 5 //hz Number of time per second the velocity command is parsed. Used to filter out too many command to the ESC
 #define DEBUG_RATE 3 // mess per second
-//#define DEBUG_PID 
+#define DEBUG_PID 
 
 #ifdef DEBUG_PID
 	float dbg_k_p = K_P;
@@ -324,12 +324,14 @@ void moveBase()
 		motor1_controller.spin(0);
 	    motor2_controller.spin(0);
 		check_applied_pwm = 0;
+		motor1_pid.resetPID();
 	} else {
 		last_spin_applied_motor_2 = motor2_controller.spin(applied_pwm_motor2);
 		if (last_spin_applied_motor_2 == 0) {
 			motor1_controller.spin(0);
 			motor2_controller.spin(0);
 			check_applied_pwm = 0;
+			motor1_pid.resetPID();
 		}
 	}
 #if LINO_BASE==1 
@@ -340,11 +342,10 @@ void moveBase()
 		last_spin_applied_motor_3 = motor3_controller.spin(motor3_pid.compute(requested_current_rpm3, current_rpm3));  
 		last_spin_applied_motor_4 = motor4_controller.spin(motor4_pid.compute(requested_current_rpm4, current_rpm4));    
 	}
-    
 #endif
 
 
-	// Calculate speed, update RPM
+	// Calculate speed, update RPM with the new SPIN
 	current_rpm1 = -motor1_encoder.getRPM();	// The motor is rotating inverted
 	current_rpm2 = motor2_encoder.getRPM(); 
 #if LINO_BASE==1
@@ -388,6 +389,9 @@ void stopBase()
 
 void publishIMU()
 {
+	static char buffer_IMU_msg[150];
+	static int IMU_counter=0;
+	
     //pass accelerometer data to imu object
     raw_imu_msg.linear_acceleration = readAccelerometer();
 
@@ -399,6 +403,15 @@ void publishIMU()
 
     //publish raw_imu_msg
     raw_imu_pub.publish(&raw_imu_msg);
+	
+	// Publish some message for monitoring
+	if ((IMU_counter++ % 20)==0) {
+		sprintf (buffer_IMU_msg, "IMU Readings Accel : a_x=%2.2f, a_y=%2.2f, a_z=%2.2f", raw_imu_msg.linear_acceleration.x, raw_imu_msg.linear_acceleration.y, raw_imu_msg.linear_acceleration.z);
+		nh.loginfo(buffer_IMU_msg);
+		sprintf (buffer_IMU_msg, "IMU Readings Gyro  : g_x=%2.2f, g_y=%2.2f, g_z=%2.2f", raw_imu_msg.angular_velocity.x, raw_imu_msg.angular_velocity.y, raw_imu_msg.angular_velocity.z);
+		nh.loginfo(buffer_IMU_msg);
+	}
+	
 }
 // as defined in Kinematics.h --->>> {DIFFERENTIAL_DRIVE, SKID_STEER, ACKERMANN, ACKERMANN1, MECANUM};
 #if LINO_BASE==2 || LINO_BASE==3

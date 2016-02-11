@@ -37,3 +37,9 @@ void PID::updateConstants(float kp, float ki, float kd)
     ki_ = ki;
     kd_ = kd;
 }
+
+void PID::resetPID()
+{
+    integral_ = 0;
+    derivative_ = 0;
+}
