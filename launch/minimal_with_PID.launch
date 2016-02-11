@@ -19,4 +19,7 @@
         <remap from="odometry/filtered" to="odom" />
         <rosparam command="load" file="$(find plutobot)/param/ekf/robot_localization.yaml" />
     </node>
+	
+	<!-- Add packge for PID tuning -->
+	<node name="lino_pid" pkg="lino_pid" type="pid_configure" />
 </launch>
