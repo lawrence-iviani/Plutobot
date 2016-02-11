@@ -1,0 +1,3 @@
+<launch>
+    <node pkg="rosbag" type="record" name="robot_bag" args="-a -o /home/ubuntu/pluto_bags/plutobot_all" />
+</launch>

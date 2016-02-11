@@ -21,15 +21,20 @@
 
 #define DEBUG 1
 
-#define K_P 0.3 // P constant
+//Init PID
+// #define K_P 0.3 // P constant
+// #define K_I 0.01 // I constant
+// #define K_D 0.2 // D constant
+// First refinment
+#define K_P 0.7 // P constant
 #define K_I 0.01 // I constant
-#define K_D 0.2 // D constant
+#define K_D 0.35 // D constant
 
 //define your robot' specs here
 //#define MAX_RPM 800               // Be careful here! this value is for running on a test bench a motor's maximum RPM
 #define MAX_RPM 400            // motor's maximum RPM, this is for usage on the road
 #define COUNTS_PER_REV 5*6		  // wheel encoder's no of ticks per rev (e.g motors for one rotation should be 6, then multiplz for the number of the gear ratio e.g 1:5 is 30 counts per rev)
-#define WHEEL_DIAMETER 0.15   // wheel's diameter in meters
+#define WHEEL_DIAMETER 0.215   // wheel's diameter in meters // origianl 0.15n ot working 0.215 good
 #define ENC_MEDIAN_FILT 1  	  // Used only with BLDC encoder, activate a median filter in the rpm reading
 #define PWM_BITS 8                // PWM Resolution of the microcontroller
 #define LR_WHEELS_DISTANCE 0.35  // distance between left and right wheels
