@@ -1,6 +1,8 @@
 <launch>
     <!-- Map server -->
-    <arg name="map_file" default="$(find plutobot)/maps/house.yaml"/>
+    <!-- <arg name="map_file" default="$(find plutobot)/maps/house.yaml"/> -->
+	<!-- <arg name="map_file" default="$(find plutobot)/maps/map.yaml"/> -->
+	<arg name="map_file" default="$(find plutobot)/maps/navigation_map_link.yaml"/>
     <node pkg="map_server" name="map_server"  type="map_server" args="$(arg map_file)" />
 
     <!-- AMCL used for localization -->
