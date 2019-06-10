@@ -1,11 +1,11 @@
 #include <ArduinoLog.h>
 
 // RATE AND TIMING
-#define COMMAND_RATE 4 //hz Number of time per second the velocity command is parsed. Used to filter out too many command to the ESC
-#define DEBUG_RATE   8 //hz, nuber of print per second NOTE: to consider the rotation of the encoder
+#define COMMAND_RATE 1 //hz Number of time per second the velocity command is parsed. Used to filter out too many command to the ESC
+#define DEBUG_RATE   1 //hz, nuber of print per second NOTE: to consider the rotation of the encoder
 
-// TODO: used to debug encoder
-#define BLDC_ENC_DEBUG 1
+#define BLDC_ENC_DEBUG 0 // Set to 1 to debug encoder
+#define BLDC_MTR_DEBUG 1 // Set to 1 to debug motor
 
 // Serial Command
 #define SERIAL_BAUD 57600
@@ -71,7 +71,7 @@ void setup() {
   // Init Serial
   Serial.begin(SERIAL_BAUD);
   // Initialize with log level and log output. 
-  Log.begin   (LOG_LEVEL_WARNING, &Serial); //LOG_LEVEL_NOTICE     
+  Log.begin   (LOG_LEVEL_NOTICE, &Serial); //LOG_LEVEL_NOTICE     , LOG_LEVEL_WARNING
   Log.notice( "***\t\tLogging ESC_And_Encoder\t\t***" CR); 
   Log.notice( "***\t\tSerial BAUD %d \t\t***" CR, SERIAL_BAUD); 
   // In Monitor use end line Both NL&CR
@@ -128,11 +128,12 @@ static int computed_pwm_1;
 static int computed_pwm_2;
 static int current_rpm1;
 static int current_rpm2;
+unsigned int last_spin_applied_motor_1;
+unsigned int last_spin_applied_motor_2;
 //static int requested_current_rpm1;
 //static int requested_current_rpm2;
 void moveBase(int set_pwm)
 {
-  static bool reversed = 0;
   //get the required rpm for each motor based on required velocities, and base used
   // Kinematics::rpm req_rpm = kinematics.getRPM(g_req_linear_vel_x, g_req_linear_vel_y, g_req_angular_vel_z);
   //the required rpm is capped at -/+ MAX_RPM to prevent the PID from having too much error
@@ -151,17 +152,6 @@ void moveBase(int set_pwm)
   //the PWM value sent to the motor driver is the calculated PID based on required RPM vs measured RPM
   //computed_pwm_1 = motor1_pid.compute(requested_current_rpm1, current_rpm1);
   //computed_pwm_2 = -motor2_pid.compute(requested_current_rpm2, -current_rpm2);
-  
-  // Check if the PWM must be reversed
-  if (set_pwm*computed_pwm_1 < 0) { // sign change
-    motor1_controller.spin(0); // Stop the spin
-    reversed = 1;
-  }
-  if (-set_pwm*computed_pwm_2 < 0) { // sign change
-    motor2_controller.spin(0); // Stop the spin
-    reversed = 1;
-  }
-  if (reversed) delay(DELAY_REVERSE);
 
   // Set the minimum threshold PWM 
   if (set_pwm > 0) {
@@ -174,9 +164,14 @@ void moveBase(int set_pwm)
   computed_pwm_1 = set_pwm;
   computed_pwm_2 = -set_pwm;
 
-  motor1_controller.spin(computed_pwm_1);
-  motor2_controller.spin(computed_pwm_2);
-  reversed = 0;
+  last_spin_applied_motor_1 = motor1_controller.spin(computed_pwm_1);
+  last_spin_applied_motor_2 = motor2_controller.spin(computed_pwm_2); 
+
+  // What to do if last spin is not applied to both 2?
+  if (last_spin_applied_motor_1== 0 && last_spin_applied_motor_2 == 9) {
+    motor1_controller.spin(0);
+    motor2_controller.spin(0);
+  }
 }
 
 // Other
@@ -195,6 +190,11 @@ void printDebug()
   sprintf (buffer, "Calucated PWM speed : PWM_FL=%d, PWM_FR=%d" CR, computed_pwm_1, computed_pwm_2);
   // nh.loginfo(buffer);
   Log.notice(buffer);
+
+  //SPIN APPLED
+  sprintf (buffer, "Was Spin Applied? PWM speed :     FL=%d,    FR=%d" CR, last_spin_applied_motor_1, last_spin_applied_motor_2);
+  // nh.loginfo(buffer);
+  Log.notice(buffer);
   
   // ENCODER
   sprintf (buffer, "Encoder FrontLeft  : %ld \t diff:  %ld" CR, read_motor1_encoder,  read_motor1_encoder - prev_read_motor1_encoder);
@@ -207,6 +207,8 @@ void printDebug()
   // RPMs
   sprintf (buffer, "Encoder Front  : Left RPM %d \t Right RPM: %d " CR, current_rpm1, current_rpm2);
   // nh.loginfo(buffer);
+
+  // Log message
   Log.notice(buffer);
 
   prev_read_motor1_encoder = read_motor1_encoder;
