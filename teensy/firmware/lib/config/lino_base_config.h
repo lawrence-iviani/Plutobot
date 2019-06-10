@@ -21,12 +21,12 @@
 
 #define DEBUG 1
 
-// #define K_P 0.6 // P constant
-// #define K_I 0.0 // I constant
-// #define K_D 0.0 // D constant
 #define K_P 0.6 // P constant
-#define K_I 0.0001 // I constant
-#define K_D 0.9 // D constant
+#define K_I 0.0 // I constant
+#define K_D 0.0 // D constant
+//#define K_P 0.6 // P constant
+//#define K_I 0.0001 // I constant
+//#define K_D 0.9 // D constant
 
 //define your robot' specs here
 #define MAX_RPM 2000               // motor's maximum RPM
@@ -163,7 +163,7 @@ ROBOT ORIENTATION
 
   #define PWM_MAX 200   //Set lower PWM for better control (read as: avoid lost of control)
   #define PWM_MIN -PWM_MAX
-  #define PWM_MIN_THRESHOLD 20 	  // The minimum threshold for pwm in brushless control. An offset for the 0 to PWM MAX
+  #define PWM_MIN_THRESHOLD 60 	  // The minimum threshold for pwm in brushless control. An offset for the 0 to PWM MAX
 
 #endif
 
