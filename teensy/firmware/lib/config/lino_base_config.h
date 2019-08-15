@@ -21,20 +21,21 @@
 
 #define DEBUG 1
 
-#define K_P 0.9 // P constant
-#define K_I 0.1 // I constant
-#define K_D 0.005 // D constant
-//#define K_P 0.6 // P constant
-//#define K_I 0.0001 // I constant
-//#define K_D 0.9 // D constant
+#define K_P 0.3 // P constant
+#define K_I 0.01 // I constant
+#define K_D 0.2 // D constant
 
 //define your robot' specs here
 //#define MAX_RPM 800               // Be careful here! this value is for running on a test bench a motor's maximum RPM
 #define MAX_RPM 400            // motor's maximum RPM, this is for usage on the road
 #define COUNTS_PER_REV 5*6		  // wheel encoder's no of ticks per rev (e.g motors for one rotation should be 6, then multiplz for the number of the gear ratio e.g 1:5 is 30 counts per rev)
-#define WHEEL_DIAMETER 0.15       // wheel's diameter in meters
+#define WHEEL_DIAMETER 0.15   // wheel's diameter in meters
+// HOTQUICKFIX to correct ODOM
+//0.15       // wheel's diameter in meters ORIGINAL
+//good for linear distance 0.175
+
 #define PWM_BITS 8                // PWM Resolution of the microcontroller
-#define LR_WHEELS_DISTANCE 0.36  // distance between left and right wheels
+#define LR_WHEELS_DISTANCE 0.35  // distance between left and right wheels
 #define FR_WHEELS_DISTANCE 0.30   // distance between front and rear wheels. Ignore this if you're on 2WD/ACKERMANN
 #define MAX_STEERING_ANGLE 0.415  // max steering angle. This only applies to Ackermann steering
 
@@ -181,15 +182,10 @@ ROBOT ORIENTATION
   #define MOTOR4_IN_A 4
   #define MOTOR4_IN_B 3 // Not use in case of ESC. Only for compatibility, PIN is reused for ENCODER!!
 
-  #define PWM_MAX 300   //Set lower PWM for better control (read as: avoid lost of control)
-  #define PWM_MIN -450  //-PWM_MAX
-  #define PWM_POSITIVE_MIN_THRESHOLD 30 	  // The minimum threshold for pwm in brushless control, it maps the 0 to PWM_POSITIVE_MIN_THRESHOLD. An offset for the 0 to PWM MAX
-  #define PWM_NEGATIVE_MIN_THRESHOLD -150   	  // The minimum threshold for pwm in brushless control. it maps the 0 to PWM_NEGATIVE_MIN_THRESHOLD. An offset for the 0 to PWM MIN
-  
-  // NOT WORKING
-  #define MAX_RAMP_PWM_PER_MS_POSITIVE_DELTA 0.06 //  Max velocity of INCREASE a PWM per msec, (NOTE:  BREAK SEEMS APPLIED BY THE ESC)
-												   //   0.04 seems the max velocity, but for consitency it is better to set equal in both cases
-  #define MAX_RAMP_PWM_PER_MS_NEGATIVE_DELTA 0.06 // Max velocity of INCREASE a PWM per msec, (NOTE: NO BREAK APPLIED BY THE ESC??)
+  #define PWM_MAX 400   //Set lower PWM for better control (read as: avoid lost of control)
+  #define PWM_MIN -400  //-PWM_MAX
+  #define PWM_POSITIVE_MIN_THRESHOLD 16	 	  // The minimum threshold for pwm in brushless control, it maps the 0 to PWM_POSITIVE_MIN_THRESHOLD. An offset for the 0 to PWM MAX
+  #define PWM_NEGATIVE_MIN_THRESHOLD -55// -41 //-45  	  // The minimum threshold for pwm in brushless control. it maps the 0 to PWM_NEGATIVE_MIN_THRESHOLD. An offset for the 0 to PWM MIN
 
 #endif
 
