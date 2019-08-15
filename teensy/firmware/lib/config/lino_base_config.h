@@ -30,10 +30,7 @@
 #define MAX_RPM 400            // motor's maximum RPM, this is for usage on the road
 #define COUNTS_PER_REV 5*6		  // wheel encoder's no of ticks per rev (e.g motors for one rotation should be 6, then multiplz for the number of the gear ratio e.g 1:5 is 30 counts per rev)
 #define WHEEL_DIAMETER 0.15   // wheel's diameter in meters
-// HOTQUICKFIX to correct ODOM
-//0.15       // wheel's diameter in meters ORIGINAL
-//good for linear distance 0.175
-
+#define ENC_MEDIAN_FILT 1  	  // Used only with BLDC encoder, activate a median filter in the rpm reading
 #define PWM_BITS 8                // PWM Resolution of the microcontroller
 #define LR_WHEELS_DISTANCE 0.35  // distance between left and right wheels
 #define FR_WHEELS_DISTANCE 0.30   // distance between front and rear wheels. Ignore this if you're on 2WD/ACKERMANN

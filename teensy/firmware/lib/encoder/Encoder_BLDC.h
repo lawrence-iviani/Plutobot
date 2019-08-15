@@ -37,8 +37,11 @@
 #include "WProgram.h"
 #include "pins_arduino.h"
 #endif
-//#include "digitalWriteFast.h" //or 
+
 #include "utility/digitalWriteFast.h"
+#include "utility/FastRunningMedian.h"
+#define MEDIAN_WINDOW 4 // the length of the window of the median filter
+
 // Rotation Table
 // SENS_U | SENS_V | SENS_W
 //   1    |   1    |   0
@@ -51,6 +54,7 @@
 // Define rotation constant
 #define CW             1      // Assign a value to represent clock wise rotation
 #define CCW           -1      // Assign a value to represent counter-clock wise rotation
+
 
 typedef struct {
   uint8_t pinU;
@@ -74,13 +78,17 @@ typedef struct {
   float pulseTimeW;       // Float variable to store the elapsed time between interrupts for hall sensor W 
   float pulseTimeU;       // Float variable to store the elapsed time between interrupts for hall sensor U 
   float pulseTimeV;       // Float variable to store the elapsed time between interrupts for hall sensor V 
+  
   float AvPulseTime;      // Float variable to store the average elapsed time between all interrupts 
+  int countsPerRev;
   
   float PPM;        // Float variable to store calculated pulses per minute
   float RPM;        // Float variable to store calculated revolutions per minute
-  
-  int countsPerRev;
+// #ifdef...  union???
+  FastRunningMedian<int, MEDIAN_WINDOW, 0> medianRPM;
+  bool using_median;
 
+		
 #if BLDC_ENC_DEBUG==1
   char debug_interrupt_msg[40]; // for debugging!
   long debugInterruptProcessed; // the number of time the interrupt calls are executed since last print
@@ -90,18 +98,31 @@ typedef struct {
 class Encoder_BLDC
 {
   public:
-    Encoder_BLDC(uint8_t pinU, uint8_t pinV, uint8_t pinW , int counts_per_rev);
+    Encoder_BLDC(uint8_t pinU, uint8_t pinV, uint8_t pinW , int counts_per_rev, bool median_filter);
     void setupInterruptHandler(uint8_t irq_pin, void (*ISR)(void), int value);
     void  handleInterrupt_U(void);
     void  handleInterrupt_V(void);
     void  handleInterrupt_W(void);
 
     int getRPM(){
-      if ((millis() - this->data.prevTime) > 100) this->data.RPM = 0; // we're not moving anymore. sending a 0)
+	// reset if necessary the counter
+    if ((millis() - this->data.prevTime) > 100) {
+		for (int i=0; i < MEDIAN_WINDOW; i++) {
+			this->data.medianRPM.addValue(0);
+		}
+		this->data.RPM = 0;  // we're not moving anymore. sending a 0)
+	}
 #if BLDC_ENC_DEBUG==1
       this->print_debug();
 #endif
-      return this->data.RPM * this->data.direct; // RPM and rotation sense
+	
+	if (this->data.using_median) {
+	  return this->data.medianRPM.getMedian();
+    } else {
+	  return this->data.RPM * this->data.direct;
+      //return this->data.RPM * this->data.direct; // RPM and rotation sense
+    }
+	
     }
 
 	int32_t read() {
@@ -128,16 +149,15 @@ class Encoder_BLDC
 };
 
 
-Encoder_BLDC::Encoder_BLDC(uint8_t pinU, uint8_t pinV, uint8_t pinW,  int counts_per_rev) {
-
-// TBH, I am not sure how the pin should be set. In the design the signal sensors is powered via ESC. pinMode(pinXXX, INPUT);  seems to work
+Encoder_BLDC::Encoder_BLDC(uint8_t pinU, uint8_t pinV, uint8_t pinW,  int counts_per_rev, bool median) {
 // Set digital pins HallSensorU/V/W as inputs
-//#ifdef INPUT_PULLUP
-//  #warning Encoder_BLDC configured with PULLUP
-//      pinMode(pinU, INPUT_PULLUP);     
-//      pinMode(pinV, INPUT_PULLUP);     
-//      pinMode(pinW, INPUT_PULLUP);
-//#else
+// Use PULL up if you provide also Vcc, otherwise normallhy
+#ifdef INPUT_PULLUP
+ #warning Encoder_BLDC configured with PULLUP
+     pinMode(pinU, INPUT_PULLUP);     
+     pinMode(pinV, INPUT_PULLUP);     
+     pinMode(pinW, INPUT_PULLUP);
+#else
   #warning Encoder_BLDC configured WITHOUT PULLUP
       pinMode(pinU, INPUT);     
       pinMode(pinV, INPUT);     
@@ -146,7 +166,7 @@ Encoder_BLDC::Encoder_BLDC(uint8_t pinU, uint8_t pinV, uint8_t pinW,  int counts
       //digitalWrite(pinU, HIGH);
       //digitalWrite(pinV, HIGH);
       //digitalWrite(pinW, HIGH);
-//#endif //INPUT_PULLUP
+#endif //INPUT_PULLUP
 
       this->data.HSU_Val = digitalReadFast(pinU);   // Set the U sensor value as boolean and read initial state
       this->data.HSV_Val = digitalReadFast(pinV);   // Set the V sensor value as boolean and read initial state 
@@ -160,12 +180,20 @@ Encoder_BLDC::Encoder_BLDC(uint8_t pinU, uint8_t pinV, uint8_t pinW,  int counts
       this->data.pulseTimeU = 0;       
       this->data.pulseTimeV = 0;       
       this->data.AvPulseTime = 0;
-      
+
       this->data.PPM = 0;
-      this->data.RPM = 0;
       this->data.direct = CW;
 	  this->data.countsPerRev = counts_per_rev;
 	  this->data.falsePulseCount = 0;
+	  
+	  this->data.using_median = median;
+	  
+	  if (this->data.using_median) {
+		// do nothing?? Is already init with 0 
+	  } else { 
+		this->data.RPM = 0;
+	  }
+	  
     }
 
 inline void Encoder_BLDC::readAll() {
@@ -188,7 +216,11 @@ inline void Encoder_BLDC::update_rpm() {
   this->data.pulseCount = this->data.pulseCount + (1 * data.direct);         // Add 1 to the pulse count in the direction of moving (+ FWD, - BCK)
   this->data.AvPulseTime = ((this->data.pulseTimeW + this->data.pulseTimeU + this->data.pulseTimeV)/3); // Calculate the average time time between pulses
   this->data.PPM = (1000 / this->data.AvPulseTime) * 60;              // Calculate the pulses per min (1000 millis in 1 second)
-  this->data.RPM = this->data.PPM / this->data.countsPerRev; 
+  if (this->data.using_median) {
+	  this->data.medianRPM.addValue(int(this->data.PPM / this->data.countsPerRev) * this->data.direct);
+  } else {
+	  this->data.RPM = (this->data.PPM / this->data.countsPerRev); 
+  }
   this->data.prevTime = this->data.startTime;                   // Remember the start time for the next interrupt
 }
 

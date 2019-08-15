@@ -16,6 +16,9 @@
 #include "lino_msgs/PID.h"
 //header file for imu
 #include "lino_msgs/Imu.h"
+//header for pwm/rpm debug messages
+#include <std_msgs/Int16MultiArray.h>
+#include <std_msgs/Int16.h>
 
 #include "lino_base_config.h"
 #include "Motor.h"
@@ -26,9 +29,10 @@
 #define ENCODER_OPTIMIZE_INTERRUPTS // comment this out on Non-Teensy boards
 
 
-#define IMU_PUBLISH_RATE 5 //hz
-#define COMMAND_RATE 5 //hz Number of time per second the velocity command is parsed. Used to filter out too many command to the ESC
-#define DEBUG_RATE 3 // mess per second
+#define IMU_PUBLISH_RATE 10 //hz
+#define COMMAND_RATE 10 //hz Number of time per second the velocity command is parsed. Used to filter out too many command to the ESC
+#define MOTOR_MSGS_RATE 10 // set to 1 or even higher if not needed (I have used for debug)
+#define DEBUG_RATE 1 // mess per second
 #define DEBUG_PID 
 
 #ifdef DEBUG_PID
@@ -40,8 +44,8 @@
 #ifdef USE_ESC // Assuming using ESC uses needs to extract the RPM in the 
 #include "Encoder_BLDC.h"
 //Setup a pointer for the encoders needed, this has to be init with proper pins in the setup
-Encoder_BLDC motor1_encoder(MOTOR1_ENCODER_A, MOTOR1_ENCODER_B, MOTOR1_ENCODER_C, COUNTS_PER_REV);
-Encoder_BLDC motor2_encoder(MOTOR2_ENCODER_A, MOTOR2_ENCODER_B, MOTOR2_ENCODER_C, COUNTS_PER_REV);
+Encoder_BLDC motor1_encoder(MOTOR1_ENCODER_A, MOTOR1_ENCODER_B, MOTOR1_ENCODER_C, COUNTS_PER_REV, ENC_MEDIAN_FILT);
+Encoder_BLDC motor2_encoder(MOTOR2_ENCODER_A, MOTOR2_ENCODER_B, MOTOR2_ENCODER_C, COUNTS_PER_REV, ENC_MEDIAN_FILT);
 
 //Encapsulate a call for any interrupts to the relative encoder class, this has to be asssociated in the setup
 void enc1InterruptHandler_A(void) { motor1_encoder.handleInterrupt_U(); }
@@ -52,8 +56,8 @@ void enc2InterruptHandler_B(void) { motor2_encoder.handleInterrupt_V(); }
 void enc2InterruptHandler_C(void) { motor2_encoder.handleInterrupt_W(); }
 
 #if LINO_BASE==1 // as defined in Kinematics.h --->>> {DIFFERENTIAL_DRIVE, SKID_STEER, ACKERMANN, ACKERMANN1, MECANUM};
-Encoder_BLDC motor3_encoder(MOTOR3_ENCODER_A, MOTOR3_ENCODER_B,MOTOR4_ENCODER_C, COUNTS_PER_REV);
-Encoder_BLDC motor4_encoder(MOTOR4_ENCODER_A, MOTOR4_ENCODER_B,MOTOR4_ENCODER_C, COUNTS_PER_REV);
+Encoder_BLDC motor3_encoder(MOTOR3_ENCODER_A, MOTOR3_ENCODER_B,MOTOR4_ENCODER_C, COUNTS_PER_REV, ENC_MEDIAN_FILT);
+Encoder_BLDC motor4_encoder(MOTOR4_ENCODER_A, MOTOR4_ENCODER_B,MOTOR4_ENCODER_C, COUNTS_PER_REV, ENC_MEDIAN_FILT);
 void enc3InterruptHandler_A(void) { motor3_encoder.handleInterrupt_U(); }
 void enc3InterruptHandler_B(void) { motor3_encoder.handleInterrupt_V(); }
 void enc3InterruptHandler_C(void) { motor3_encoder.handleInterrupt_W(); }
@@ -88,7 +92,7 @@ PID motor2_pid(PWM_MIN, PWM_MAX, K_P, K_I, K_D);
 #if LINO_BASE==1
 PID motor3_pid(PWM_MIN, PWM_MAX, K_P, K_I, K_D);
 PID motor4_pid(PWM_MIN, PWM_MAX, K_P, K_I, K_D);
-#endif
+#endif	
 
 Kinematics kinematics(Kinematics::LINO_BASE, MAX_RPM, WHEEL_DIAMETER, FR_WHEELS_DISTANCE, LR_WHEELS_DISTANCE);
 
@@ -113,6 +117,51 @@ ros::Publisher raw_imu_pub("raw_imu", &raw_imu_msg);
 lino_msgs::Velocities raw_vel_msg;
 ros::Publisher raw_vel_pub("raw_vel", &raw_vel_msg);
 
+std_msgs::Int16MultiArray rpm_msg;
+ros::Publisher rpm_pub("rpm", &rpm_msg);
+
+std_msgs::Int16MultiArray pwm_msg;
+ros::Publisher pwm_pub("pwm", &pwm_msg);
+
+std_msgs::Int16 mot_enable_msg;
+ros::Publisher mot_enable_pub("motor_enabled", &mot_enable_msg);
+
+// Using current RPM as global variables. For debugging
+int current_rpm1;
+int current_rpm2;
+int requested_current_rpm1;
+int requested_current_rpm2;
+int computed_pwm_1;
+int computed_pwm_2;
+int applied_pwm_motor1;
+int applied_pwm_motor2;
+int last_spin_applied_motor_1; 
+int last_spin_applied_motor_2; 
+int check_applied_pwm = 0; // set to 1 if pwm was applied, otherwise set 0
+int32_t  prev_read_motor1_encoder;
+int32_t  prev_read_motor2_encoder;
+int32_t read_motor1_encoder;
+int32_t read_motor2_encoder;
+
+// as defined in Kinematics.h --->>> {DIFFERENTIAL_DRIVE, SKID_STEER, ACKERMANN, ACKERMANN1, MECANUM};
+#if LINO_BASE==1
+int current_rpm3;
+int current_rpm4;
+int requested_current_rpm3;
+int requested_current_rpm4;
+int computed_pwm_3;
+int computed_pwm_4;
+int applied_pwm_motor3;
+int applied_pwm_motor4;
+int last_spin_applied_motor_3; 
+int last_spin_applied_motor_4; 
+int32_t  prev_read_motor3_encoder;
+int32_t  prev_read_motor4_encoder;
+int32_t read_motor3_encoder;
+int32_t read_motor4_encoder;
+#endif
+
+
 void setup()
 {
 // as defined in Kinematics.h --->>> {DIFFERENTIAL_DRIVE, SKID_STEER, ACKERMANN, ACKERMANN1, MECANUM};
@@ -127,14 +176,29 @@ void setup()
     nh.subscribe(cmd_sub);
     nh.advertise(raw_vel_pub);
     nh.advertise(raw_imu_pub);
-
+	nh.advertise(rpm_pub);
+	nh.advertise(pwm_pub);
+	nh.advertise(mot_enable_pub);
+	mot_enable_msg.data = 0;
+#if LINO_BASE==1
+	rpm_msg.data_length  = 4;
+	rpm_msg.data = (int16_t*) malloc(sizeof(int) * 4);
+	pwm_msg.data_length  = 4;
+	pwm_msg.data = (int16_t*) malloc(sizeof(int) * 4);
+#else
+	rpm_msg.data_length  = 2;
+	rpm_msg.data = (int16_t*) malloc(sizeof(int) * 2);
+	pwm_msg.data_length  = 2;
+	pwm_msg.data = (int16_t*) malloc(sizeof(int) * 2);
+#endif	
+	
 // Init encoder
 #ifdef USE_ESC
 	motor1_encoder.setupInterruptHandler(MOTOR1_ENCODER_A, enc1InterruptHandler_A, CHANGE);
 	motor1_encoder.setupInterruptHandler(MOTOR1_ENCODER_B, enc1InterruptHandler_B, CHANGE);
 	motor1_encoder.setupInterruptHandler(MOTOR1_ENCODER_C, enc1InterruptHandler_C, CHANGE);
 	motor2_encoder.setupInterruptHandler(MOTOR2_ENCODER_A, enc2InterruptHandler_A, CHANGE);
-	motor2_encoder.setupInterruptHandler(MOTOR2_ENCODER_B, enc2InterruptHandler_B, CHANGE);
+	motor2_encoder.setupInterruptHandler(MOTOR2_ENCODER_B, enc2InterruptHandler_B, CHANGE);	
 	motor2_encoder.setupInterruptHandler(MOTOR2_ENCODER_C, enc2InterruptHandler_C, CHANGE);
 #if LINO_BASE==1 // as defined in Kinematics.h --->>> {DIFFERENTIAL_DRIVE, SKID_STEER, ACKERMANN, ACKERMANN1, MECANUM};
 	motor3_encoder.setupInterruptHandler(MOTOR3_ENCODER_A, enc1InterruptHandler_A, CHANGE);
@@ -172,6 +236,7 @@ void loop()
     static unsigned long prev_control_time = 0;
     static unsigned long prev_imu_time = 0;
     static unsigned long prev_debug_time = 0;
+	static unsigned long prev_motor_msgs_time = 0;
     static bool imu_is_initialized;
 
     //this block drives the robot based on defined rate
@@ -216,6 +281,15 @@ void loop()
             prev_debug_time = millis();
         }
     }
+	
+	//publish debug pwm and rpm
+    if ((millis() - prev_motor_msgs_time) >= (1000 / MOTOR_MSGS_RATE))
+	{
+		print_motor_messages();
+		prev_motor_msgs_time = millis();
+	}
+
+
     //call all the callbacks waiting to be called
     nh.spinOnce();
 }
@@ -250,34 +324,6 @@ void commandCallback(const geometry_msgs::Twist& cmd_msg)
     g_prev_command_time = millis();
 }
 
-
-// Using current RPM as global variables. For debugging
-int current_rpm1;
-int current_rpm2;
-int requested_current_rpm1;
-int requested_current_rpm2;
-int computed_pwm_1;
-int computed_pwm_2;
-int applied_pwm_motor1;
-int applied_pwm_motor2;
-int last_spin_applied_motor_1; 
-int last_spin_applied_motor_2; 
-int check_applied_pwm = 0; // set to 1 if pwm was applied, otherwise set 0
-
-// as defined in Kinematics.h --->>> {DIFFERENTIAL_DRIVE, SKID_STEER, ACKERMANN, ACKERMANN1, MECANUM};
-#if LINO_BASE==1
-int current_rpm3;
-int current_rpm4;
-int requested_current_rpm3;
-int requested_current_rpm4;
-int computed_pwm_3;
-int computed_pwm_4;
-int applied_pwm_motor3;
-int applied_pwm_motor4;
-int last_spin_applied_motor_3; 
-int last_spin_applied_motor_4; 
-#endif
-
 void moveBase()
 {
 	check_applied_pwm = 1;
@@ -297,7 +343,6 @@ void moveBase()
     MOTOR3  MOTOR4  (4WD/MECANUM)  
          BACK
 */
-
     //get the current speed of each motor and the requested. These are saved in a variable for debugging purposes	
 	current_rpm1 = motor1_encoder.getRPM();	
 	current_rpm2 = motor2_encoder.getRPM(); 
@@ -386,19 +431,54 @@ void stopBase()
     g_req_angular_vel_z = 0;
 }
 
+geometry_msgs::Vector3 rotate_z_CW_m90(geometry_msgs::Vector3 vec) {
+	// A horrible code to rotate CW a vector on the
+	// this is a fix for the mounting direction of the IMU.
+	// Actually is mounted (left hand)
+	//
+	//   X <--o Z
+	//        |
+	//        |
+	//        V Y
+	//
+	// Should be mounted like (left hand)
+	//        ^ X
+	//        |
+	//        |
+	//   Y <--o Z
+	//
+	// The rotation matrix would be:
+	// https://en.wikipedia.org/wiki/Rotation_matrix#Basic_rotations
+	//
+	//      | 0   1  0 |
+	// Rz = | -1  0  0 |
+	//      | 0   0  0 | 
+	//
+	// Which result in the follow transformation
+	// Rz * V = | Vy  -Vx  Vz|
+	
+	geometry_msgs::Vector3 retval;
+	retval.x = vec.y;
+	retval.y = -vec.x;
+	retval.z = vec.z;
+	
+	return retval;
+}
+
 void publishIMU()
 {
 	static char buffer_IMU_msg[150];
 	static int IMU_counter=0;
+	static int _mag_scale = 100000;
 	
     //pass accelerometer data to imu object
-    raw_imu_msg.linear_acceleration = readAccelerometer();
+    raw_imu_msg.linear_acceleration = rotate_z_CW_m90(readAccelerometer());
 
     //pass gyroscope data to imu object
-    raw_imu_msg.angular_velocity = readGyroscope();
+    raw_imu_msg.angular_velocity = rotate_z_CW_m90(readGyroscope());
 
     //pass accelerometer data to imu object
-    raw_imu_msg.magnetic_field = readMagnetometer();
+    raw_imu_msg.magnetic_field = rotate_z_CW_m90(readMagnetometer());
 
     //publish raw_imu_msg
     raw_imu_pub.publish(&raw_imu_msg);
@@ -409,8 +489,9 @@ void publishIMU()
 		nh.loginfo(buffer_IMU_msg);
 		sprintf (buffer_IMU_msg, "IMU Readings Gyro  : g_x=%2.2f, g_y=%2.2f, g_z=%2.2f", raw_imu_msg.angular_velocity.x, raw_imu_msg.angular_velocity.y, raw_imu_msg.angular_velocity.z);
 		nh.loginfo(buffer_IMU_msg);
+		sprintf (buffer_IMU_msg, "IMU Readings mag(x%d)   : m_x=%2.2f, m_y=%2.2f, m_z=%2.2f", _mag_scale,_mag_scale*raw_imu_msg.magnetic_field.x, _mag_scale*raw_imu_msg.magnetic_field.y, _mag_scale*raw_imu_msg.magnetic_field.z);
+		nh.loginfo(buffer_IMU_msg);
 	}
-	
 }
 // as defined in Kinematics.h --->>> {DIFFERENTIAL_DRIVE, SKID_STEER, ACKERMANN, ACKERMANN1, MECANUM};
 #if LINO_BASE==2 || LINO_BASE==3
@@ -444,14 +525,16 @@ int mapESC_PWM(int pwm) {
 }
 #endif
 
-int32_t  prev_read_motor1_encoder;
-int32_t  prev_read_motor2_encoder;
-int32_t read_motor1_encoder;
-int32_t read_motor2_encoder;
-#if LINO_BASE==1
-int32_t  prev_read_motor3_encoder;
-int32_t  prev_read_motor4_encoder;
-#endif
+void print_motor_messages() {
+	rpm_msg.data[0] = current_rpm1;
+	rpm_msg.data[1] = current_rpm2;
+	pwm_msg.data[0] = applied_pwm_motor1;
+	pwm_msg.data[1] = applied_pwm_motor2;
+	mot_enable_msg.data = 1;//check_applied_pwm;
+	rpm_pub.publish(&rpm_msg);
+	pwm_pub.publish(&pwm_msg);
+	mot_enable_pub.publish(&mot_enable_msg);
+}					   
 
 void printDebug()
 {
@@ -463,9 +546,12 @@ void printDebug()
 	//applied_pwm_motor2 = motor2_controller.latest_spin_applied();
 	//int32_t read_motor3_encoder = motor3_encoder.read();
 	//int32_t read_motor4_encoder = motor4_encoder.read();
-	static geometry_msgs::Vector3 gyro = readGyroscope();
-	static geometry_msgs::Vector3 accel = readAccelerometer();
+	static geometry_msgs::Vector3 gyro = rotate_z_CW_m90(readGyroscope());
+	static geometry_msgs::Vector3 accel = rotate_z_CW_m90(readAccelerometer());
+	static geometry_msgs::Vector3 mag = rotate_z_CW_m90(readMagnetometer());
+	
 // #ifdef USE_ESC
+	// // activate for debug rpm
 	// static float* read_timing1 = motor1_encoder.read_timing();
 	// static float* read_timing2 = motor2_encoder.read_timing();
 	//// Timing Sensors
@@ -506,6 +592,8 @@ void printDebug()
 	nh.logdebug(buffer);
 	sprintf (buffer, "IMU Readings Gyro  : g_x=%2.2f, g_y=%2.2f, g_z=%2.2f", gyro.x, gyro.y, gyro.z);
     nh.logdebug(buffer);
+	sprintf (buffer, "IMU Readings mag   : m_x=%2.6f, m_y=%2.6f, m_z=%2.6f", mag.x, mag.y, mag.z);
+    nh.logdebug(buffer);
 	
 #ifdef DEBUG_PID
 	//PID
@@ -520,8 +608,10 @@ void printDebug()
 	
 	prev_read_motor1_encoder = read_motor1_encoder;
 	prev_read_motor2_encoder = read_motor2_encoder;
-
 //	prev_read_motor3_encoder = read_motor3_encoder;
 //	prev_read_motor4_encoder = read_motor4_encoder;
 
 }
+
+
+
