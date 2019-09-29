@@ -40,7 +40,7 @@
 
 #include "utility/digitalWriteFast.h"
 #include "utility/FastRunningMedian.h"
-#define MEDIAN_WINDOW 4 // the length of the window of the median filter
+#define MEDIAN_WINDOW 3  // the length of the window of the median filter
 
 // Rotation Table
 // SENS_U | SENS_V | SENS_W
