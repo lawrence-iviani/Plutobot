@@ -1,8 +1,14 @@
+<img src="https://github.com/lawrence-iviani/Plutobot_docs/blob/master/imgs/wiki/logo.png" width="200" height="200" />
+
 # Plutobot
+
 Plutobot is the development environment for the Pluto embedded system.
 It is based on https://linorobot.org/ an Open Source ROS compatible robots which is used as a base platform for the development of the Pluto control system.
 
-## Version
+## Versions
+- Pluto 2.0,  https://github.com/lawrence-iviani/Plutobot
+The up to date code branch for Plutobot.
+
 - Plutino,  https://github.com/lawrence-iviani/Plutobot/tree/Plutino
 A small  proof of concept with brushed motor. Succesful tested powertrain and controllability.
 
