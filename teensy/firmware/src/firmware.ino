@@ -324,6 +324,18 @@ void commandCallback(const geometry_msgs::Twist& cmd_msg)
     g_prev_command_time = millis();
 }
 
+// This is an idea, to map the rpm in order to compensate any non linearity
+#define RPM_CORRECTION_THRESHOLD 40
+#define RPM_CORRECTION_MULTIPLIER 0.95 //1.25 
+int rpm_corrector(int rpm) {
+	float _correction=1.0;
+	int rpm_abs = abs(rpm);
+	if (rpm_abs > 0 and rpm_abs < RPM_CORRECTION_THRESHOLD) {
+		_correction = map(rpm_abs, 0 , RPM_CORRECTION_THRESHOLD , RPM_CORRECTION_MULTIPLIER, 1.0);	
+	}
+	return int(_correction*rpm);
+}
+
 void moveBase()
 {
 	check_applied_pwm = 1;
@@ -344,14 +356,14 @@ void moveBase()
          BACK
 */
     //get the current speed of each motor and the requested. These are saved in a variable for debugging purposes	
-	current_rpm1 = motor1_encoder.getRPM();	
-	current_rpm2 = motor2_encoder.getRPM(); 
+	current_rpm1 = rpm_corrector(motor1_encoder.getRPM());	
+	current_rpm2 = rpm_corrector(motor2_encoder.getRPM()); 
 	
 	requested_current_rpm1 = req_rpm.motor1;
 	requested_current_rpm2 = req_rpm.motor2;
 #if LINO_BASE==1
-	current_rpm3 = motor3_encoder.getRPM();
-    current_rpm4 = motor4_encoder.getRPM();
+	current_rpm3 = rpm_corrector(motor3_encoder.getRPM());
+    current_rpm4 = rpm_corrector(motor4_encoder.getRPM());
 	requested_current_rpm3 = req_rpm.motor3;
 	requested_current_rpm4 = req_rpm.motor4;
 #endif
