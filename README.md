@@ -2,7 +2,7 @@
 
 # Plutobot
 
-Plutobot is the development environment for the Pluto embedded system.
+Plutobot is the development environment for the [Pluto](https://plutorobot.wordpress.com/) embedded system.
 It is based on https://linorobot.org/ an Open Source ROS compatible robots which is used as a base platform for the development of the Pluto control system.
 
 ## Versions
